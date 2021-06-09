@@ -1,5 +1,3 @@
-# Testing Pytorch works and completeing the exercies outlined in the Deep Learning with Pytorch textbook.
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -206,6 +204,8 @@ out = img.permute(2, 0, 1) # channel 2 first, then 0 and 1
 #%%
 import csv
 
+# working with real dataset
+
 wine_path = "dlwpt-code-master/data/p1ch4/tabular-wine/winequality-white.csv"
 wineq_numpy = np.loadtxt(wine_path, dtype=np.float32, delimiter=";",
 skiprows=1)
@@ -214,6 +214,62 @@ col_list = next(csv.reader(open(wine_path), delimiter=';'))
 
 #Converting to torch tensor
 wineq = torch.from_numpy(wineq_numpy)
+
+# Removing the score from the data (last column)
+data = wineq[:, :-1]
+data, data.shape
+
+# Only the scores
+target = wineq[:, -1]
+target, target.shape
+
+target = wineq[:, -1].long() # changes to 64 bit?
+
+target_onehot = torch.zeros(target.shape[0], 10) # 10 used as score is out of 10
+
+# Underscore means method will NOT return new tensor
+# unsqueeze changes the size to 4898*1 (singleton dimension added)
+
+target_onehot.scatter_(1, target.unsqueeze(1), 1.0)
+
+# Mean and variance of original data
+data_mean = torch.mean(data, dim=0) # Take mean along 0th dimension
+data_var = torch.var(data, dim=0)
+
+data_normalized = (data - data_mean) / torch.sqrt(data_var)
+
+# Checking which scores are less than 3 
+bad_indexes = target <= 3
+bad_data = data[bad_indexes] # This filters and leaves the bad data only
+
+mid_data = data[(target > 3) & (target < 7)]
+good_data = data[target >= 7]
+
+# Taking the mean of the DATA (parameters) for which the overall SCORE (target) is bad, mid, or good
+bad_mean = torch.mean(bad_data, dim=0)
+mid_mean = torch.mean(mid_data, dim=0)
+good_mean = torch.mean(good_data, dim=0)
+
+for i, args in enumerate(zip(col_list, bad_mean, mid_mean, good_mean)):
+    print('{:2} {:20} {:6.2f} {:6.2f} {:6.2f}'.format(i, *args))
+
+
+# Setting a threshold using the mid range sulfur mean
+total_sulfur_threshold = 141.83
+total_sulfur_data = data[:,6]
+predicted_indexes = torch.lt(total_sulfur_data, total_sulfur_threshold) # Returns bool torch
+
+# Sum here shows a total of how many bools return True
+predicted_indexes.shape, predicted_indexes.dtype, predicted_indexes.sum()
+
+
+actual_indexes = target > 5
+actual_indexes.shape, actual_indexes.dtype, actual_indexes.sum()
+
+# .item() returns the number encoded, the & condition sees how well are predicted matched the actual
+n_matches = torch.sum(actual_indexes & predicted_indexes).item()
+n_predicted = torch.sum(predicted_indexes).item()
+n_actual = torch.sum(actual_indexes).item()
 
 
 
